@@ -12,3 +12,8 @@
 # python manage.py makemigrations
 # python manage.py migrate
 # python manage.py createsuperuser (lorenzoregalzi , lorenzo.regalzi@gmail.com, admin )
+
+
+
+###### Dockerize
+#webApp % pip3 freeze -l > reuqirements.txt 
