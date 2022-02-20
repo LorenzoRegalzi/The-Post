@@ -13,7 +13,6 @@ from datetime import datetime
 from datetime import timedelta
 
 
-
 def signup(request):
     form = CreateUserForm()
     if request.method == 'POST':
@@ -28,7 +27,7 @@ def signup(request):
     return render(request, 'blog/signup.html', {'form': form})
 
 
-def logoutUser(request):
+def logout_user(request):
     logout(request)
     return redirect('signin')
 
@@ -41,7 +40,10 @@ def signin(request):
         form = LoginForm(request.POST or None)
         form.username = request.POST['username']
         form.password = request.POST['password']
-        user = authenticate(request, username=form.username, password=form.password)
+        user = authenticate(
+            request,
+            username=form.username,
+            password=form.password)
         if user is not None:
             login(request, user)
             client_ip = request.META['REMOTE_ADDR']
@@ -51,29 +53,34 @@ def signin(request):
 
             user_ip = UserIpAddress()
             user_ip.user = user
-            user_ip.addIpaddress(client_ip)
+            user_ip.add_ip_address(client_ip)
             return redirect('home')
         else:
             form = LoginForm()
             messages.error(request, 'error with credentials')
+            return render(request, 'blog/signin.html', {'form': form})
     else:
         return render(request, 'blog/signin.html', {'form': form})
 
 
 @login_required(login_url='signin')
 def home(request):
-    userIp = UserIpAddress.objects.order_by('id')
+    user_ip = UserIpAddress.objects.order_by('id')
     client_ip = request.META['REMOTE_ADDR']
-    for u in userIp:
+    for u in user_ip:
         if u.id == request.user.id:
             if u.address != client_ip:
-                UserIpAddress.objects.filter(user_id=request.user.id).update(address=client_ip)
-                messages.error(request, 'you accessed with a different ip address')
+                UserIpAddress.objects.filter(
+                    user_id=request.user.id).update(
+                    address=client_ip)
+                messages.error(
+                    request, 'you accessed with a different ip address')
                 break
 
     posts = Post.objects.order_by('published_date')
     user_detail = request.user.is_superuser
-    return render(request, 'blog/home.html', {'posts': posts, 'permission': user_detail})
+    return render(request, 'blog/home.html',
+                  {'posts': posts, 'permission': user_detail})
 
 
 @login_required(login_url='signin')
@@ -88,10 +95,13 @@ def post_new(request):
             block = 'hack'
             if block in phrase:
                 messages.error(request, 'hack is not allowed word')
-            else :
-                post = form.save(commit=False)
+            else:
+                post = Post()
                 post.user = request.user
-                post.published_date = timezone.now()
+                post.title = form.title 
+                post.text = form.text
+                post.publish()
+                post.writeOnChain()
                 post.save()
                 return redirect('home')
     else:
@@ -102,7 +112,7 @@ def post_new(request):
 @login_required(login_url='signin')
 @user_passes_test(lambda u: u.is_superuser, login_url='signin')
 def table_posts(request):
-    myObj = []
+    my_obj = []
     posts = Post.objects.order_by('id')
     users = User.objects.order_by('id')
     for u in users:
@@ -111,9 +121,10 @@ def table_posts(request):
 
             if p.user_id == u.id:
                 test['post'] = test['post'] + 1
-        myObj.append(test)
+        my_obj.append(test)
 
-    return render(request, 'blog/table_posts.html', {'posts': myObj})
+    return render(request, 'blog/table_posts.html', {'posts': my_obj})
+
 
 @login_required(login_url='signin')
 def last_hour_post(request):
@@ -130,7 +141,7 @@ def last_hour_post(request):
         response.append(
             {
                 'title': post.title,
-                'created_date' : post.created_date,
+                'created_date': post.created_date,
                 'text': post.text,
                 'author': post.user.username,
                 'published_date': post.published_date,
@@ -138,10 +149,11 @@ def last_hour_post(request):
         )
     return JsonResponse(response, safe=False)
 
+
 @login_required(login_url='signin')
 def user_page(request, id):
-    myUser = {
-        'post' : []
+    my_user = {
+        'post': []
     }
     users = User.objects.order_by('id')
     posts = Post.objects.order_by('id')
@@ -150,16 +162,17 @@ def user_page(request, id):
         if u.id == id:
             name = u.username
             email = u.email
-            myUser['name'] = name
-            myUser['email'] = email
+            my_user['name'] = name
+            my_user['email'] = email
             for p in posts:
                 if p.user_id == u.id:
-                    myUser['post'].append(p)
+                    my_user['post'].append(p)
             break
         else:
-            myUser['name'] = 'user not found'
+            my_user['name'] = 'user not found'
 
-    return render(request, 'blog/user_page.html', {'user': myUser})
+    return render(request, 'blog/user_page.html', {'user': my_user})
+
 
 @login_required(login_url='signin')
 def find_word(request, word):
